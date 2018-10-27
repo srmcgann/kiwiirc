@@ -233,9 +233,6 @@
 }
 
 /* The header option buttons */
-.kiwi-header-option {
-    border-left: 1px solid rgba(0, 0, 0, 0.2);
-}
 .kiwi-header-option a:hover,
 .kiwi-header-option--active,
 .kiwi-header-option--active:hover a{
@@ -245,7 +242,6 @@
 }
 
 .kiwi-header-option--active {
-    border-left: none;
     opacity: 1;
 }
 
@@ -630,6 +626,11 @@
 }
 .kiwi-container--sidebar-pinned .kiwi-sidebar {
     border-color: #b2b2b2;
+}
+
+.kiwi-aboutbuffer h4 {
+    background-color: #42b992;
+    color: #fff;
 }
 
 
