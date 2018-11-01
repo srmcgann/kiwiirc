@@ -5,6 +5,7 @@ import Vue from 'vue';
 import _ from 'lodash';
 import NetworkState from './state/NetworkState';
 import BufferState from './state/BufferState';
+import UserState from './state/UserState';
 import Message from './Message';
 
 const stateObj = {
@@ -46,6 +47,7 @@ const stateObj = {
             timestamp_full_format: '',
             show_timestamps: true,
             scrollback_size: 250,
+            show_hostnames: false,
             show_joinparts: true,
             show_topics: true,
             show_nick_changes: true,
@@ -1024,15 +1026,7 @@ const state = new Vue({
             let userObj = null;
 
             if (!usersArr[user.nick.toLowerCase()]) {
-                userObj = usersArr[user.nick.toLowerCase()] = {
-                    nick: user.nick,
-                    host: user.host || '',
-                    username: user.username || '',
-                    realname: user.realname || '',
-                    modes: user.modes || '',
-                    away: user.away || '',
-                    buffers: Object.create(null),
-                };
+                userObj = usersArr[user.nick.toLowerCase()] = new UserState(user);
             } else {
                 // Update the existing user object with any new info we have
                 userObj = state.getUser(network.id, user.nick, usersArr);
@@ -1156,14 +1150,19 @@ const state = new Vue({
             let normalisedOld = oldNick.toLowerCase();
 
             user.nick = newNick;
-            state.$set(network.users, normalisedNew, network.users[normalisedOld]);
-            state.$delete(network.users, normalisedOld);
 
-            Object.keys(user.buffers).forEach((bufferId) => {
-                let buffer = user.buffers[bufferId].buffer;
-                state.$set(buffer.users, normalisedNew, buffer.users[normalisedOld]);
-                state.$delete(buffer.users, normalisedOld);
-            });
+            // If the nick has completely changed (ie. not just a case change) then update all
+            // associated buffers user lists
+            if (normalisedOld !== normalisedNew) {
+                state.$set(network.users, normalisedNew, network.users[normalisedOld]);
+                state.$delete(network.users, normalisedOld);
+
+                Object.keys(user.buffers).forEach((bufferId) => {
+                    let buffer = user.buffers[bufferId].buffer;
+                    state.$set(buffer.users, normalisedNew, buffer.users[normalisedOld]);
+                    state.$delete(buffer.users, normalisedOld);
+                });
+            }
 
             let buffer = this.getBufferByName(network.id, oldNick);
             if (buffer) {

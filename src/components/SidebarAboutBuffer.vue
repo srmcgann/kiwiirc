@@ -2,38 +2,55 @@
     <div class="kiwi-aboutbuffer">
         <h3>{{ b.name }}</h3>
 
-        <div class="kiwi-aboutbuffer-section">
-            <h4><i class="fa fa-angle-right"/> About</h4>
+        <div
+            :class="{'kiwi-aboutbuffer-section--closed': closedSections.about}"
+            class="kiwi-aboutbuffer-section"
+        >
+            <h4 @click="toggleSection('about')">
+                <i class="fa fa-angle-right"/> {{ $t('about') }}
+            </h4>
             <div>
                 <p v-if="b.topic" v-html="formattedTopic"/>
-                <p v-else>There is no topic for this channel</p>
+                <p v-else>{{ $t('no_topic_set') }}</p>
 
-                <p>
-                    <a class="u-link" @click="sidebarState.showNicklist()">
+                <p v-if="b.created_at">
+                    {{ $t('created_at', { when: new Intl.DateTimeFormat().format(b.created_at) }) }}
+                </p>
+
+                <p class="kiwi-aboutbuffer-usercount">
+                    <a class="u-link " @click="sidebarState.showNicklist()">
                         {{ $t('person', {count: Object.keys(b.users || {}).length}) }}
                     </a>
                 </p>
             </div>
         </div>
 
-        <div class="kiwi-aboutbuffer-section">
-            <h4><i class="fa fa-angle-right"/> Highlights</h4>
+        <div
+            :class="{'kiwi-aboutbuffer-section--closed': closedSections.highlights}"
+            class="kiwi-aboutbuffer-section"
+        >
+            <h4 @click="toggleSection('highlights')">
+                <i class="fa fa-angle-right"/> {{ $t('highlights') }}
+            </h4>
             <div>
                 <ul v-if="highlights.length > 0" class="display:none;">
                     <li v-for="msg in highlights" :key="msg.id">
                         {{ msg.nick }}: {{ msg.message }}
                     </li>
                 </ul>
-                <p v-else>Nobody has mentioned you yet...</p>
+                <p v-else>{{ $t('nobody_mentioned_you') }}</p>
             </div>
         </div>
 
         <div
             v-for="plugin in pluginUiSections"
             :key="plugin.id"
+            :class="{'kiwi-aboutbuffer-section--closed': closedSections[plugin.id]}"
             class="kiwi-aboutbuffer-section"
         >
-            <h4><i class="fa fa-angle-right"/> {{ plugin.args.title }}</h4>
+            <h4 @click="toggleSection(plugin.id)">
+                <i class="fa fa-angle-right"/> {{ plugin.args.title }}
+            </h4>
             <div v-rawElement="plugin.el" />
         </div>
     </div>
@@ -52,6 +69,7 @@ export default {
     data() {
         return {
             pluginUiSections: GlobalApi.singleton().aboutBufferPlugins,
+            closedSections: {},
         };
     },
     computed: {
@@ -78,6 +96,9 @@ export default {
         },
     },
     methods: {
+        toggleSection(section) {
+            this.$set(this.closedSections, section, !this.closedSections[section]);
+        },
     },
 };
 </script>
@@ -106,8 +127,6 @@ export default {
 
 .kiwi-aboutbuffer h3 {
     padding: 10px;
-    background: rgba(0, 0, 0, 0.1);
-    color: rgba(0, 0, 0, 0.71);
     width: 100%;
     box-sizing: border-box;
 }
@@ -115,23 +134,46 @@ export default {
 .kiwi-aboutbuffer-section {
     display: block;
     width: 100%;
-    margin-top: 1em;
-}
-
-.kiwi-aboutbuffer-section:first-of-type {
-    margin-top: 0;
 }
 
 .kiwi-aboutbuffer-section h4 {
     padding: 10px;
+    cursor: pointer;
+    user-select: none;
 }
 
 .kiwi-aboutbuffer-section h4 i {
     margin-right: 5px;
+    transition: transform 0.2s;
+}
+
+.kiwi-aboutbuffer-section--closed h4 i {
+    transform: rotate(90deg);
 }
 
 .kiwi-aboutbuffer-section > div {
-    padding: 0 1em;
+    padding: 1em;
+    transition: max-height 0.2s, padding 0.2s, opacity 0.2s;
+    overflow: hidden;
+    max-height: 500px;
+}
+
+.kiwi-aboutbuffer-section .kiwi-aboutbuffer-usercount {
+    text-align: center;
+}
+
+.kiwi-aboutbuffer-section > div p {
+    margin: 0 0 1em 0;
+}
+
+.kiwi-aboutbuffer-section > div p:last-of-type {
+    margin-bottom: 0;
+}
+
+.kiwi-aboutbuffer-section--closed > div {
+    max-height: 0;
+    padding: 0;
+    opacity: 0;
 }
 
 </style>

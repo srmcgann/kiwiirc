@@ -79,7 +79,6 @@
 'kiwi public';
 
 import strftime from 'strftime';
-import * as TextFormatting from '@/helpers/TextFormatting';
 import Logger from '@/libs/Logger';
 import BufferKey from './BufferKey';
 import NotConnected from './NotConnected';
@@ -338,9 +337,9 @@ export default {
 
             return message.isHighlight;
         },
-        nickStyle(nick) {
-            if (this.bufferSetting('colour_nicknames_in_messages')) {
-                return 'color:' + TextFormatting.createNickColour(nick) + ';';
+        userColour(user) {
+            if (user && this.bufferSetting('colour_nicknames_in_messages')) {
+                return user.getColour();
             }
             return '';
         },
@@ -365,7 +364,8 @@ export default {
         },
         onMessageClick(event, message, delay) {
             // Delaying the click for 200ms allows us to check for a second click. ie. double click
-            if (delay) {
+            // Quick hack as we only need double click for nicks, nothing else
+            if (delay && event.target.getAttribute('data-nick')) {
                 clearTimeout(this.messageClickTmr);
                 this.messageClickTmr = setTimeout(this.onMessageClick, 200, event, message, false);
                 return;
@@ -583,6 +583,7 @@ export default {
     vertical-align: top;
     cursor: pointer;
     padding: 2px 4px;
+    word-break: break-all;
 }
 
 .kiwi-messagelist-message-traffic .kiwi-messagelist-nick {

@@ -428,11 +428,15 @@ function clientMiddleware(state, network) {
                 network.ircClient.who(event.channel);
             }
 
+            let nick = buffer.setting('show_hostnames') ?
+                TextFormatting.formatUserFull(event) :
+                TextFormatting.formatUser(event);
+
             let messageBody = TextFormatting.formatAndT(
                 'channel_join',
                 null,
                 'has_joined',
-                { nick: TextFormatting.formatUserFull(event) }
+                { nick: nick }
             );
 
             state.addMessage(buffer, {
@@ -504,11 +508,15 @@ function clientMiddleware(state, network) {
                 });
             }
 
+            let nick = buffer.setting('show_hostnames') ?
+                TextFormatting.formatUserFull(event) :
+                TextFormatting.formatUser(event);
+
             let messageBody = TextFormatting.formatAndT(
                 'channel_part',
                 { reason: event.message },
                 'has_left',
-                { nick: TextFormatting.formatUserFull(event) },
+                { nick: nick },
             );
 
             state.addMessage(buffer, {
@@ -532,11 +540,15 @@ function clientMiddleware(state, network) {
                     buffer.clearUsers();
                 }
 
+                let nick = buffer.setting('show_hostnames') ?
+                    TextFormatting.formatUserFull(event) :
+                    TextFormatting.formatUser(event);
+
                 let messageBody = TextFormatting.formatAndT(
                     'channel_quit',
                     { reason: event.message },
                     'has_left',
-                    { nick: TextFormatting.formatUserFull(event) }
+                    { nick: nick }
                 );
 
                 state.addMessage(buffer, {
@@ -760,6 +772,10 @@ function clientMiddleware(state, network) {
                         message: buffer.name + ' ' + modeStrs.join(', '),
                     });
                 }
+            }
+
+            if (event.created_at) {
+                buffer.created_at = new Date(event.created_at * 1000);
             }
 
             if (event.created_at && buffer.flags.requested_modes) {

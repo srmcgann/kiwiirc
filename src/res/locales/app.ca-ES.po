@@ -11,7 +11,7 @@ msgstr ""
 "Last-Translator: kiwiirc <darren@kiwiirc.com>\n"
 "Language-Team: Catalan\n"
 "Language: ca_ES\n"
-"PO-Revision-Date: 2018-10-17 02:30\n"
+"PO-Revision-Date: 2018-10-30 00:50\n"
 
 #: Start
 msgid "start_button"
@@ -580,6 +580,26 @@ msgstr "Colorejar nicks a la llista"
 #: No buffer set
 msgid "side_buffer"
 msgstr "No hi ha buffer configurat."
+
+#: There is no topic for this channel
+msgid "no_topic_set"
+msgstr "No hi ha cap tòpic per aquest canal"
+
+#: About
+msgid "about"
+msgstr "Sobre"
+
+#: Created at {{when}}
+msgid "created_at"
+msgstr "Creat el {{when}}"
+
+#: Highlights
+msgid "highlights"
+msgstr "Destacats"
+
+#: Nobody has mentioned you yet...
+msgid "nobody_mentioned_you"
+msgstr "Ningú t'ha mencionat encara..."
 
 #: There was an error starting Kiwi IRC :(
 msgid "error_starting"

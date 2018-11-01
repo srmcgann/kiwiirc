@@ -11,7 +11,7 @@ msgstr ""
 "Last-Translator: kiwiirc <darren@kiwiirc.com>\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
-"PO-Revision-Date: 2018-10-17 07:01\n"
+"PO-Revision-Date: 2018-10-30 00:50\n"
 
 #: Start
 msgid "start_button"
@@ -580,6 +580,26 @@ msgstr "Colorear apodos en la lista"
 #: No buffer set
 msgid "side_buffer"
 msgstr "No hay buffer configurado"
+
+#: There is no topic for this channel
+msgid "no_topic_set"
+msgstr "No hay ningun tópico para este canal"
+
+#: About
+msgid "about"
+msgstr "Sobre"
+
+#: Created at {{when}}
+msgid "created_at"
+msgstr "Creado el {{when}}"
+
+#: Highlights
+msgid "highlights"
+msgstr "Destacados"
+
+#: Nobody has mentioned you yet...
+msgid "nobody_mentioned_you"
+msgstr "Nadie te ha mencionado aun..."
 
 #: There was an error starting Kiwi IRC :(
 msgid "error_starting"
