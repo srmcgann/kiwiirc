@@ -1,6 +1,13 @@
-import { Core as Uppy, Dashboard, Tus, Webcam } from 'uppy'
-import 'uppy/dist/uppy.min.css'
-import fileListComponent from './components/fileListComponent.vue'
+// polyfill globals for uppy on IE11
+import 'core-js/fn/array/iterator'
+// import 'core-js/fn/promise' // already included by kiwiirc
+
+import Uppy from '@uppy/core'
+import Dashboard from '@uppy/dashboard'
+import Tus from '@uppy/tus'
+import Webcam from '@uppy/webcam'
+import '@uppy/dashboard/dist/style.min.css'
+import sidebarFileList from './components/SidebarFileList.vue'
 
 const KiB = 2 ** 10
 const MiB = 2 ** 20
@@ -38,34 +45,9 @@ kiwi.plugin('fileuploader', function(kiwi, log) {
 
     kiwi.addUi('input', uploadFileButton)
 
-    // add button to input bar
-    const historyButton = document.createElement('i')
-    historyButton.className = 'history-button fa fa-history'
-
-    kiwi.addUi('input', historyButton)
-
-    historyButton.onclick = e => {
-        kiwi.emit("sidebar.show")
-        kiwi.showInSidebar(fileListComponent)
-    }
-
-    let fileList = []
-
-    kiwi.on('message.new', e => {
-        if (e.message.indexOf(settings.server) !== -1) {
-            let currentdate = new Date(); 
-            let time = currentdate.getHours() + ":"  
-                + currentdate.getMinutes() + ":" 
-                + currentdate.getSeconds();
-            let link = {
-                url: e.message.substring(e.message.indexOf(settings.server)),
-                nick: e.nick,
-                time 
-            };
-            link.url = link.url.split(' ')[0].split(')')[0]
-            fileList.push(link);
-        }
-    })
+    let c = new kiwi.Vue(sidebarFileList)
+    c.$mount()
+    kiwi.addUi('about_buffer', c.$el, {title: 'Shared Files'})
 
     const uppy = Uppy({
         autoProceed: false,
@@ -99,7 +81,11 @@ kiwi.plugin('fileuploader', function(kiwi, log) {
     // show uppy modal whenever a file is dragged over the page
     window.addEventListener('dragenter', event => {
         // swallow error and ignore drag if no valid buffer to share to
-        try { getValidUploadTarget() } catch (err) { return }
+        try {
+            getValidUploadTarget()
+        } catch (err) {
+            return
+        }
 
         dashboard.openModal()
     })
@@ -107,7 +93,11 @@ kiwi.plugin('fileuploader', function(kiwi, log) {
     // show uppy modal when files are pasted
     kiwi.on('buffer.paste', event => {
         // swallow error and ignore paste if no valid buffer to share to
-        try { getValidUploadTarget() } catch (err) { return }
+        try {
+            getValidUploadTarget()
+        } catch (err) {
+            return
+        }
 
         // IE 11 puts the clipboardData on the window
         const cbData = event.clipboardData || window.clipboardData
@@ -120,9 +110,11 @@ kiwi.plugin('fileuploader', function(kiwi, log) {
         const text = cbData.getData('text')
         if (text) {
             const network = kiwi.state.getActiveNetwork()
-            const networkMaxLineLen = network.ircClient.options.message_max_length
+            const networkMaxLineLen =
+                network.ircClient.options.message_max_length
             if (text.length > networkMaxLineLen || numLines(text) > 4) {
-                const msg = 'You pasted a lot of text.\nWould you like to upload as a file instead?'
+                const msg =
+                    'You pasted a lot of text.\nWould you like to upload as a file instead?'
                 if (window.confirm(msg)) {
                     // stop IrcInput from ingesting the pasted text
                     event.preventDefault()
