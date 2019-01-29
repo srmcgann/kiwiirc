@@ -16,7 +16,7 @@ export function create(state, network) {
         port: network.connection.port,
         tls: network.connection.tls,
         path: network.connection.path,
-        password: network.connection.password,
+        password: network.password,
         nick: network.nick,
         username: network.username || network.nick,
         gecos: network.gecos || 'https://kiwiirc.com/',
@@ -70,7 +70,7 @@ export function create(state, network) {
             ircClient.options.host = network.connection.server;
             ircClient.options.port = network.connection.port;
             ircClient.options.tls = network.connection.tls;
-            ircClient.options.password = network.connection.password;
+            ircClient.options.password = network.password;
             ircClient.options.nick = network.nick;
             ircClient.options.username = network.username || network.nick;
             ircClient.options.gecos = network.gecos || 'https://kiwiirc.com/';
@@ -172,6 +172,20 @@ function clientMiddleware(state, network) {
     function rawEventsHandler(command, event, rawLine, client, next) {
         state.$emit('irc.raw', command, event, network);
         state.$emit('irc.raw.' + command, command, event, network);
+
+        // SASL failed auth
+        if (command === '904') {
+            network.ircClient.connection.end();
+            network.last_error = 'Invalid login';
+
+            let serverBuffer = network.serverBuffer();
+            state.addMessage(serverBuffer, {
+                time: Date.now(),
+                nick: '*',
+                message: 'Invalid login',
+            });
+        }
+
         next();
     }
 
@@ -199,11 +213,6 @@ function clientMiddleware(state, network) {
         }
 
         if (command === 'registered') {
-            if (client.options.nickserv) {
-                let options = client.options.nickserv;
-                client.say('nickserv', 'identify ' + options.account + ' ' + options.password);
-            }
-
             network.nick = event.nick;
             state.addUser(networkid, { nick: event.nick, username: client.user.username });
 
@@ -355,13 +364,13 @@ function clientMiddleware(state, network) {
                 }
             }
 
+            const PM_BLOCK_BLOCKED = false;
+            // const PM_BLOCK_NOT_BLOCKED = true;
+            const PM_BLOCK_REQUIRES_CHECK = null;
+
+            let pmBlock = network.isNickExemptFromPmBlocks(event.nick);
             let blockNewPms = state.setting('buffers.block_pms');
             let buffer = state.getBufferByName(networkid, bufferName);
-            if (isPrivateMessage && !buffer && blockNewPms) {
-                return;
-            } else if (!buffer) {
-                buffer = state.getOrAddBufferByName(networkid, bufferName);
-            }
 
             let textFormatType = 'privmsg';
             if (event.type === 'action') {
@@ -377,13 +386,51 @@ function clientMiddleware(state, network) {
                 text: event.message,
             });
 
-            state.addMessage(buffer, {
+            let message = {
                 time: event.time || Date.now(),
                 nick: event.nick,
                 message: messageBody,
                 type: event.type,
                 tags: event.tags || {},
-            });
+            };
+
+            // If this is a new PM and the sending user is not exempt from blocks, ignore it
+            if (blockNewPms && isPrivateMessage && !buffer && pmBlock === PM_BLOCK_BLOCKED) {
+                return;
+            }
+
+            // If we need to manually check if this user is blocked..
+            if (blockNewPms && isPrivateMessage && !buffer && pmBlock === PM_BLOCK_REQUIRES_CHECK) {
+                // if the nick is in pendingPms it has already issued a whois request
+                let awaitingWhois = !!_.find(network.pendingPms, { nick: event.nick });
+                network.pendingPms.push({ bufferName, message });
+
+                // Don't send another whois if we are already awaiting another
+                if (awaitingWhois) {
+                    return;
+                }
+
+                network.ircClient.whois(event.nick, event.nick, (whoisData) => {
+                    network.pendingPms.forEach((pm, idx, obj) => {
+                        let nickLower = pm.message.nick.toLowerCase();
+                        if (nickLower === whoisData.nick.toLowerCase()) {
+                            if (whoisData.operator) {
+                                buffer = state.getOrAddBufferByName(network.id, pm.bufferName);
+                                state.addMessage(buffer, pm.message);
+                            }
+                            obj.splice(idx, 1);
+                        }
+                    });
+                });
+
+                return;
+            }
+
+            // Make sure we have a buffer for our message
+            if (!buffer) {
+                buffer = state.getOrAddBufferByName(networkid, bufferName);
+            }
+            state.addMessage(buffer, message);
         }
 
         if (command === 'wallops') {
@@ -413,11 +460,18 @@ function clientMiddleware(state, network) {
             }
 
             let buffer = state.getOrAddBufferByName(networkid, event.channel);
+
+            // The case does not match, update buffer.name to the casing sent by the server
+            if (buffer.name !== event.channel) {
+                buffer.rename(event.channel);
+            }
+
             state.addUserToBuffer(buffer, {
                 nick: event.nick,
                 username: event.ident,
                 host: event.hostname,
                 realname: event.gecos,
+                account: event.account || '',
             });
 
             if (event.nick === client.user.nick) {
@@ -576,6 +630,10 @@ function clientMiddleware(state, network) {
             });
         }
 
+        if (command === 'account') {
+            state.addUser(networkid, { nick: event.nick, account: event.account || '' });
+        }
+
         if (command === 'whois') {
             let obj = {
                 nick: event.nick,
@@ -583,6 +641,7 @@ function clientMiddleware(state, network) {
                 username: event.ident,
                 away: event.away || '',
                 realname: event.real_name,
+                hasWhois: true,
             };
 
             // Some other optional bits of info
@@ -615,6 +674,16 @@ function clientMiddleware(state, network) {
                 nick: event.nick,
                 away: event.message || '',
             });
+            let buffer = state.getActiveBuffer();
+            if (buffer && event.nick === network.nick) {
+                network.away = 'away';
+                state.addMessage(buffer, {
+                    time: event.time || Date.now(),
+                    nick: '*',
+                    type: 'presence',
+                    message: event.message,
+                });
+            }
         }
 
         if (command === 'back') {
@@ -622,6 +691,16 @@ function clientMiddleware(state, network) {
                 nick: event.nick,
                 away: '',
             });
+            let buffer = state.getActiveBuffer();
+            if (buffer && event.nick === network.nick) {
+                network.away = '';
+                state.addMessage(buffer, {
+                    time: event.time || Date.now(),
+                    nick: '*',
+                    type: 'presence',
+                    message: event.message,
+                });
+            }
         }
 
         if (command === 'wholist') {
@@ -633,6 +712,7 @@ function clientMiddleware(state, network) {
                         username: user.ident || undefined,
                         away: user.away ? 'Away' : '',
                         realname: user.real_name,
+                        account: user.account || '',
                     };
                     state.addUser(networkid, userObj, users);
                 });
